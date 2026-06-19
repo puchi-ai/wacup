@@ -1,19 +1,19 @@
 /**
  * KV Store — Persistent Storage Adapter
  *
- * Production (Vercel): Uses Upstash Redis (formerly Vercel KV).
+ * Production (Vercel): Uses Upstash Redis via @upstash/redis SDK with Redis.fromEnv().
  * Development (local):   Uses filesystem-backed JSON files.
  *
  * Environment variables for production:
- *   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN — Upstash console
- *   KV_REST_API_URL / KV_REST_API_TOKEN                — Vercel Marketplace
+ *   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN — set via Upstash Vercel Integration
  *
  * On Vercel, KV credentials are auto-injected when you add the
- * Upstash Redis integration via the Marketplace.
+ * Upstash Redis integration via the Vercel Marketplace.
  */
 
 import fs from 'fs';
 import path from 'path';
+import { Redis } from '@upstash/redis';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -26,76 +26,49 @@ export interface KVStore {
 
 // ─── Upstash Redis Implementation (Production) ────────────────────────────
 
-/**
- * Read Redis connection info from environment variables.
- * Supports two naming conventions:
- *   1. UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN — Gravity Index / Upstash console
- *   2. KV_REST_API_URL / KV_REST_API_TOKEN — Vercel Marketplace integration
- */
-function getRedisEnv(): { url: string; token: string } | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  if (url && token) return { url, token };
-  return null;
-}
-
 function createUpstashStore(): KVStore | null {
-  const env = getRedisEnv();
-  if (!env) return null;
-  const { url, token } = env;
+  try {
+    const redis = Redis.fromEnv();
+    // Quick connectivity check
+    return {
+      async get<T>(key: string): Promise<T | null> {
+        try {
+          const val = await redis.get(key);
+          if (val === null) return null;
+          // Redis.fromEnv() returns parsed JSON automatically
+          return val as T;
+        } catch {
+          return null;
+        }
+      },
 
-  // Minimal fetch-based REST client — no native SDK dependency required
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+      async set(key: string, value: unknown): Promise<void> {
+        try {
+          await redis.set(key, value);
+        } catch {
+          // silently fail
+        }
+      },
 
-  return {
-    async get<T>(key: string): Promise<T | null> {
-      try {
-        const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, { headers });
-        if (!res.ok) return null;
-        const data = await res.json() as { result: string | null };
-        return data.result ? (JSON.parse(data.result) as T) : null;
-      } catch {
-        return null;
-      }
-    },
+      async del(key: string): Promise<void> {
+        try {
+          await redis.del(key);
+        } catch {
+          // silently fail
+        }
+      },
 
-    async set(key: string, value: unknown): Promise<void> {
-      try {
-        await fetch(`${url}/set/${encodeURIComponent(key)}`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(value),
-        });
-      } catch {
-        // silently fail
-      }
-    },
-
-    async del(key: string): Promise<void> {
-      try {
-        await fetch(`${url}/del/${encodeURIComponent(key)}`, {
-          method: 'POST',
-          headers,
-        });
-      } catch {
-        // silently fail
-      }
-    },
-
-    async keys(pattern: string): Promise<string[]> {
-      try {
-        const res = await fetch(`${url}/keys/${encodeURIComponent(pattern)}`, { headers });
-        if (!res.ok) return [];
-        const data = await res.json() as { result: string[] };
-        return data.result || [];
-      } catch {
-        return [];
-      }
-    },
-  };
+      async keys(pattern: string): Promise<string[]> {
+        try {
+          return await redis.keys(pattern);
+        } catch {
+          return [];
+        }
+      },
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Filesystem Implementation (Vercel /tmp or Local Dev) ──────────────────
@@ -137,8 +110,6 @@ function filePathForKey(key: string): string {
 
 function createFileStore(): KVStore | null {
   if (!ensureDataDir()) {
-    // On Vercel without Upstash, /tmp should always be writable.
-    // If we can't create the directory, fall back to a no-op store.
     return null;
   }
 
@@ -195,7 +166,7 @@ let _store: KVStore | null = null;
  * Get the singleton KV store instance.
  *
  * Priority:
- *   1. Upstash Redis (if UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN set)
+ *   1. Upstash Redis (via @upstash/redis Redis.fromEnv())
  *   2. Filesystem (fallback for local dev, or /tmp on Vercel)
  *
  * This function is called at module scope. It wraps all creation in try-catch
@@ -205,10 +176,10 @@ export function getKVStore(): KVStore {
   if (_store) return _store;
 
   try {
-    // Try Upstash first
+    // Try Upstash Redis via @upstash/redis SDK
     const upstash = createUpstashStore();
     if (upstash) {
-      console.log('[KV Store] ✅ Using Upstash Redis (Vercel KV)');
+      console.log('[KV Store] ✅ Using Upstash Redis (@upstash/redis SDK)');
       _store = upstash;
       return _store;
     }
@@ -259,10 +230,10 @@ function createNoopStore(): KVStore {
 
 /**
  * Check if the KV store is backed by Upstash Redis (production).
- * Checks both UPSTASH_REDIS_REST_* and KV_REST_API_* naming conventions.
+ * Checks for UPSTASH_REDIS_REST_URL env var.
  */
 export function isRemoteKV(): boolean {
-  return getRedisEnv() !== null;
+  return !!(process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL);
 }
 
 // ─── Named KV Keys ─────────────────────────────────────────────────────────

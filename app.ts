@@ -12,11 +12,11 @@ import { generateText, streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { withMemWal } from '@mysten-incubation/memwal/ai';
 import dotenv from 'dotenv';
-import { Match, Prediction, ChatMessage } from './src/types';
-import { mockMatches } from './src/mockData';
-import { fetchWorldCup2026Matches, getCacheInfo as getWorldCupCacheInfo, clearCache as clearWorldCupCache } from './src/lib/worldcup-api';
-import { getMemWalServer } from './src/lib/memwal-server';
-import { getKVStore, KV_KEYS, isRemoteKV } from './src/lib/kv-store';
+import { Match, Prediction, ChatMessage } from './src/types.js';
+import { mockMatches } from './src/mockData.js';
+import { fetchWorldCup2026Matches, getCacheInfo as getWorldCupCacheInfo, clearCache as clearWorldCupCache } from './src/lib/worldcup-api.js';
+import { getMemWalServer } from './src/lib/memwal-server.js';
+import { getKVStore, KV_KEYS } from './src/lib/kv-store.js';
 
 dotenv.config();
 

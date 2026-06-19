@@ -8,6 +8,6 @@
  *
  * Rewrites in vercel.json send all /api/(.*) and / requests here.
  */
-import app from '../app';
+import app from '../app.js';
 
 export default app;
