@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "system-ui", "sans-serif";
+  --font-display: "Plus Jakarta Sans", "Inter", "sans-serif";
+  --font-mono: "JetBrains Mono", "monospace";
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+  .animate-scale-up {
+    animation: scaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+  .animate-glow-slow-1 {
+    animation: glowMoving1 8s ease-in-out infinite alternate;
+  }
+  .animate-glow-slow-2 {
+    animation: glowMoving2 10s ease-in-out infinite alternate;
+  }
+  .animate-modal-in {
+    animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-glass-border {
+    animation: glassBorderRotate 3s linear infinite;
+  }
+  .animate-glass-border-slow {
+    animation: glassBorderRotate 6s linear infinite;
+  }
+  .animate-pulse-border {
+    animation: pulseBorder 1.5s ease-in-out infinite;
+  }
+}
+
+@keyframes glowMoving1 {
+  0% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(120px, 80px) scale(1.3) rotate(180deg);
+    opacity: 0.55;
+    background-color: rgba(6, 182, 212, 0.35);
+  }
+  100% {
+    transform: translate(-40px, 140px) scale(1.05) rotate(360deg);
+    opacity: 0.40;
+    background-color: rgba(16, 185, 129, 0.3);
+  }
+}
+
+@keyframes glowMoving2 {
+  0% {
+    transform: translate(0px, 0px) scale(1.3) rotate(360deg);
+    opacity: 0.30;
+  }
+  50% {
+    transform: translate(-100px, -80px) scale(0.95) rotate(180deg);
+    opacity: 0.50;
+    background-color: rgba(99, 102, 241, 0.3);
+  }
+  100% {
+    transform: translate(80px, -30px) scale(1.4) rotate(0deg);
+    opacity: 0.35;
+    background-color: rgba(6, 182, 212, 0.35);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes modalIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes glassBorderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulseBorder {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(6, 182, 212, 0.6), 0 0 48px rgba(6, 182, 212, 0.3);
+  }
+}
+
+/* Deep Black and Blur shadows for Liquid glass */
+.box-shadow-glass {
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.95),
+              inset 0 1px 0px 0px rgba(255, 255, 255, 0.12);
+}
+
+/* Custom Webkit scrollbar for Chat logs */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  transition: background 0.3s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+/* Force standard styles on standard selects */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(156,163,175,0.7)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}

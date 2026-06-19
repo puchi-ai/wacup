@@ -1,0 +1,8 @@
+[package]
+name = "worldcup_predictor"
+version = "0.1.0"
+edition = "2024"
+# Sui framework is provided by the system — no [dependencies] needed
+
+[addresses]
+worldcup_predictor = "0x0"

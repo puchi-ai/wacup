@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Apple-style rounded square background -->
+  <rect width="512" height="512" rx="112" fill="#000000"/>
+
+  <!-- Walrus Face - Front View, Minimal Apple-Style Silhouette -->
+  <!-- Golden Ratio φ ≈ 1.618 applied:
+       - Head width / height ≈ 378/320 ≈ 1.18 (walrus proportions)
+       - Tusk rest at 1/φ² ≈ 0.382 from chin
+       - Eye spacing / head width ≈ 0.382 (1/φ²)
+  -->
+  <g fill="#ffffff">
+    <!-- Head - broad, rounded shape (wider at the muzzle) -->
+    <path d="M 256 80
+             C 370 80, 445 175, 442 280
+             C 440 325, 425 360, 395 378
+             C 360 395, 310 400, 256 400
+             C 202 400, 152 395, 117 378
+             C 87 360, 72 325, 70 280
+             C 67 175, 142 80, 256 80 Z"/>
+
+    <!-- Left tusk -->
+    <path d="M 175 390
+             C 172 430, 169 460, 167 478
+             C 171 483, 177 483, 180 473
+             C 183 456, 186 425, 190 392 Z"/>
+
+    <!-- Right tusk -->
+    <path d="M 337 390
+             C 334 430, 331 460, 329 478
+             C 333 483, 339 483, 342 473
+             C 345 456, 348 425, 352 392 Z"/>
+
+    <!-- Left eye -->
+    <circle cx="195" cy="235" r="9" fill="#000000"/>
+
+    <!-- Right eye -->
+    <circle cx="317" cy="235" r="9" fill="#000000"/>
+
+    <!-- Nose -->
+    <ellipse cx="256" cy="290" rx="16" ry="10" fill="#000000"/>
+
+    <!-- Whiskers - left -->
+    <circle cx="168" cy="325" r="3.5" fill="#000000"/>
+    <circle cx="157" cy="340" r="3" fill="#000000"/>
+    <circle cx="180" cy="345" r="3" fill="#000000"/>
+
+    <!-- Whiskers - right -->
+    <circle cx="344" cy="325" r="3.5" fill="#000000"/>
+    <circle cx="355" cy="340" r="3" fill="#000000"/>
+    <circle cx="332" cy="345" r="3" fill="#000000"/>
+  </g>
+</svg>

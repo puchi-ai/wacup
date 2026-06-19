@@ -1,0 +1,6 @@
+{
+  "name": "AI Match Predictor",
+  "description": "A beautifully crafted offline-first football prediction platform demonstrating AI-powered punditry via OpenRouter and MemWal write-ahead logs with Sui wallet identity.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_AI_API"]
+}
