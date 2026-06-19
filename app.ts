@@ -15,7 +15,7 @@ import dotenv from 'dotenv';
 import { Match, Prediction, ChatMessage } from './src/types.js';
 import { mockMatches } from './src/mockData.js';
 import { fetchWorldCup2026Matches, getCacheInfo as getWorldCupCacheInfo, clearCache as clearWorldCupCache } from './src/lib/worldcup-api.js';
-import { getMemWalServer } from './src/lib/memwal-server.js';
+import { getMemWalServer, isMemWalReady } from './src/lib/memwal-server.js';
 import { getKVStore, KV_KEYS } from './src/lib/kv-store.js';
 
 dotenv.config();
@@ -628,6 +628,211 @@ app.post('/api/ai/discuss', async (req, res) => {
       res.json({ text: fallbackText, model: null });
     }, 1200);
   }
+});
+
+// ─── Vercel Diagnostics ─────────────────────────────────────────────────
+
+// Track server start time for uptime monitoring
+const SERVER_START_TIME = Date.now();
+
+/**
+ * GET /api/health — Quick health check endpoint
+ * Consistent with the fallback in api/index.ts
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    appLoaded: true,
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor((Date.now() - SERVER_START_TIME) / 1000),
+    nodeVersion: process.version,
+    vercelEnv: process.env.VERCEL_ENV || null,
+  });
+});
+
+/**
+
+/**
+ * GET /api/debug — Comprehensive Vercel diagnostics endpoint
+ *
+ * Returns a full snapshot of the server's health, configuration, and
+ * environment. Useful for debugging deployment issues on Vercel.
+ *
+ * Response format:
+ * {
+ *   status: 'ok' | 'degraded' | 'error',
+ *   timestamp: string,
+ *   environment: { node, platform, vercel, ... },
+ *   config: { envVars: { ... }, ... },
+ *   services: { kv, memwal, ai, matches, ... },
+ *   errors: string[]  // accumulated errors
+ * }
+ */
+app.get('/api/debug', async (req, res) => {
+  const diagnostics: Record<string, any> = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor((Date.now() - SERVER_START_TIME) / 1000),
+  };
+
+  const errors: string[] = [];
+
+  // ── Environment ───────────────────────────────────────────────────────
+  diagnostics.environment = {
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    memoryUsage: process.memoryUsage(),
+    cpuUsage: process.cpuUsage(),
+    cwd: process.cwd(),
+    vercel: {
+      isVercel: !!(process.env.VERCEL === '1' || process.env.VERCEL_ENV),
+      env: process.env.VERCEL_ENV || null,
+      url: process.env.VERCEL_URL || null,
+      region: process.env.VERCEL_REGION || null,
+    },
+  };
+
+  // ── Environment Variables (presence only, no values) ──────────────────
+  const requiredVars = [
+    'OPENROUTER_API_KEY',
+    'MEMWAL_PRIVATE_KEY',
+    'MEMWAL_ACCOUNT_ID',
+    'UPSTASH_REDIS_REST_URL',
+    'UPSTASH_REDIS_REST_TOKEN',
+    'AI_MODEL',
+    'VITE_SUI_PACKAGE_ID',
+    'VITE_SUI_MARKET_ID',
+  ];
+  const envVars: Record<string, { present: boolean; length: number; source: string }> = {};
+  for (const v of requiredVars) {
+    const val = process.env[v];
+    envVars[v] = {
+      present: !!val,
+      length: val ? val.length : 0,
+      source: val ? (val.startsWith('vercel_') ? 'vercel_inject' : 'user_set') : 'missing',
+    };
+  }
+  diagnostics.config = { envVars };
+
+  // ── Filesystem Access ─────────────────────────────────────────────────
+  try {
+    const testDir = process.env.VERCEL === '1' ? '/tmp' : process.cwd();
+    const canRead = fs.existsSync(testDir);
+    let canWrite = false;
+    const testFile = path.join(testDir, '.vercel-debug-test');
+    try {
+      fs.writeFileSync(testFile, 'ok');
+      fs.unlinkSync(testFile);
+      canWrite = true;
+    } catch {
+      canWrite = false;
+    }
+
+    const distExists = fs.existsSync(path.join(process.cwd(), 'dist'));
+    const dataDir = process.env.VERCEL === '1' ? '/tmp/data' : path.join(process.cwd(), 'data');
+    const dataExists = fs.existsSync(dataDir);
+
+    diagnostics.filesystem = {
+      cwd: process.cwd(),
+      testDir,
+      canRead,
+      canWrite,
+      distExists,
+      dataDir,
+      dataExists,
+    };
+
+    if (!canWrite) {
+      errors.push('Filesystem is read-only');
+    }
+  } catch (e: any) {
+    diagnostics.filesystem = { error: e.message };
+    errors.push(`Filesystem error: ${e.message}`);
+  }
+
+  // ── KV Store ──────────────────────────────────────────────────────────
+  try {
+    const kv = getKVStore();
+    const testKey = '_debug_health_' + Date.now();
+    await kv.set(testKey, { ts: Date.now(), test: true });
+    const readBack = await kv.get<{ ts: number; test: boolean }>(testKey);
+    await kv.del(testKey);
+
+    diagnostics.services = {
+      ...diagnostics.services,
+      kv: {
+        type: (process.env.UPSTASH_REDIS_REST_URL ? 'upstash-redis' : 'filesystem'),
+        writable: !!readBack,
+        readBack: !!readBack,
+      },
+    };
+
+    if (!readBack) {
+      errors.push('KV store read/write test failed');
+    }
+  } catch (e: any) {
+    diagnostics.services = { ...diagnostics.services, kv: { error: e.message } };
+    errors.push(`KV store error: ${e.message}`);
+  }
+
+  // ── Match Data ─────────────────────────────────────────────────────────
+  try {
+    const matches = await loadMatches();
+    diagnostics.services = {
+      ...diagnostics.services,
+      matches: {
+        count: _matchCache?.length || 0,
+        upcoming: matches.filter(m => m.status === 'upcoming').length,
+        completed: matches.filter(m => m.status === 'completed').length,
+        sample: matches.slice(0, 2).map(m => ({
+          id: m.id,
+          home: m.homeTeam,
+          away: m.awayTeam,
+          status: m.status,
+        })),
+      },
+    };
+  } catch (e: any) {
+    diagnostics.services = { ...diagnostics.services, matches: { error: e.message } };
+    errors.push(`Match data error: ${e.message}`);
+  }
+
+  // ── AI Model ───────────────────────────────────────────────────────────
+  diagnostics.services = {
+    ...diagnostics.services,
+    ai: {
+      configured: !!process.env.OPENROUTER_API_KEY,
+      modelInitialized: !!aiModel,
+      currentModel: currentModelId,
+      memwalAvailable,
+      appUrl: process.env.APP_URL || 'http://localhost:3000',
+    },
+  };
+
+  // ── MemWal ─────────────────────────────────────────────────────────────
+  try {
+    const mw = await getMemWalServer();
+    diagnostics.services = {
+      ...diagnostics.services,
+      memwal: {
+        configured: !!(process.env.MEMWAL_PRIVATE_KEY && process.env.MEMWAL_ACCOUNT_ID),
+        initialized: !!mw,
+        ready: isMemWalReady(),
+      },
+    };
+  } catch (e: any) {
+    diagnostics.services = { ...diagnostics.services, memwal: { error: e.message } };
+    errors.push(`MemWal error: ${e.message}`);
+  }
+
+  // ── Health Summary ────────────────────────────────────────────────────
+  diagnostics.errors = errors;
+  if (errors.length > 0) {
+    diagnostics.status = errors.length > 2 ? 'error' : 'degraded';
+  }
+
+  res.json(diagnostics);
 });
 
 // ─── Export for Server and Vercel ─────────────────────────────────────────
