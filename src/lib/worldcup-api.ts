@@ -11,7 +11,7 @@
  */
 
 import type { Match } from '../types';
-import { getTeamInfo } from './teamData';
+import { getTeamInfo } from './teamData.js';
 import fs from 'fs';
 
 // ─── Configuration ────────────────────────────────────────────────────────
