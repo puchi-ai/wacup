@@ -5,11 +5,11 @@
  * Development (local):   Uses filesystem-backed JSON files.
  *
  * Environment variables for production:
- *   UPSTASH_REDIS_REST_URL  — URL from Upstash console
- *   UPSTASH_REDIS_REST_TOKEN — Token from Upstash console
+ *   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN — Upstash console
+ *   KV_REST_API_URL / KV_REST_API_TOKEN                — Vercel Marketplace
  *
- * On Vercel, these are auto-injected when you add "Vercel KV" via the
- * Marketplace integration (it provisions an Upstash Redis instance).
+ * On Vercel, KV credentials are auto-injected when you add the
+ * Upstash Redis integration via the Marketplace.
  */
 
 import fs from 'fs';
@@ -26,11 +26,23 @@ export interface KVStore {
 
 // ─── Upstash Redis Implementation (Production) ────────────────────────────
 
-function createUpstashStore(): KVStore | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+/**
+ * Read Redis connection info from environment variables.
+ * Supports two naming conventions:
+ *   1. UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN — Gravity Index / Upstash console
+ *   2. KV_REST_API_URL / KV_REST_API_TOKEN — Vercel Marketplace integration
+ */
+function getRedisEnv(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (url && token) return { url, token };
+  return null;
+}
 
-  if (!url || !token) return null;
+function createUpstashStore(): KVStore | null {
+  const env = getRedisEnv();
+  if (!env) return null;
+  const { url, token } = env;
 
   // Minimal fetch-based REST client — no native SDK dependency required
   const headers = {
@@ -247,9 +259,10 @@ function createNoopStore(): KVStore {
 
 /**
  * Check if the KV store is backed by Upstash Redis (production).
+ * Checks both UPSTASH_REDIS_REST_* and KV_REST_API_* naming conventions.
  */
 export function isRemoteKV(): boolean {
-  return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return getRedisEnv() !== null;
 }
 
 // ─── Named KV Keys ─────────────────────────────────────────────────────────
